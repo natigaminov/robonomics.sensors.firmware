@@ -483,7 +483,8 @@ enum SettingsTextIndex { SET_OTAURL,
                          // Index above are not stored in Settings and should be handled specifically in SettingText()
                          SET_BUTTON17, SET_BUTTON18, SET_BUTTON19, SET_BUTTON20, SET_BUTTON21, SET_BUTTON22, SET_BUTTON23, SET_BUTTON24,
                          SET_BUTTON25, SET_BUTTON26, SET_BUTTON27, SET_BUTTON28, SET_BUTTON29, SET_BUTTON30, SET_BUTTON31, SET_BUTTON32,
-                         SET_FINAL_MAX
+                         SET_FINAL_MAX,
+                         /*SET_JOINEUI,*/ SET_DEVEUI, SET_APPKEY, SET_NWKKEY
                          };
 
 enum SpiInterfaces { SPI_NONE, SPI_MOSI, SPI_MISO, SPI_MOSI_MISO };

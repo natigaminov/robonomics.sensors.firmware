@@ -314,6 +314,27 @@ const char HTTP_FORM_WIFI_PART2[] PROGMEM =
 #endif
   ;
 
+#ifdef USE_LORAWAN_OTAA
+// const char HTTP_FORM_JOINEUI[] PROGMEM =  
+//   "<form method='get' action='wi'>"
+//   "<p><b>" "JoinEUI""</b>%s<br>""<input id='joineui' placeholder=\"" "Set JoinEUI" "\" value=\"%s\"></p>";
+
+const char HTTP_FORM_DEVEUI[] PROGMEM =  
+  "<br>"
+  "<fieldset><legend><b>&nbsp;" "LORAWAN parametrs" "&nbsp;</b></legend>"
+  "<form method='get' action='co'>"
+  "<p><b>" "DevEUI" "</b>%s<br><input id='deveui' placeholder=\"" "Set DevEUI" "\" value=\"%s\"></p>"; 
+
+const char HTTP_FORM_APPKEY[] PROGMEM =
+  "<form method='get' action='co'>"
+  "<p><b>" "AppKey" "</b>%s<br><input id='appkey' placeholder=\"" "Set AppKey" "\" value=\"%s\"></p>";
+
+const char HTTP_FORM_NWKKEY[] PROGMEM =
+  "<form method='get' action='co'>"
+  "<p><b>" "NwkKey" "</b>%s<br><input id='nwkkey' placeholder=\"" "Set NwkKey" "\" value=\"%s\"></p>"
+  "</fieldset>";
+#endif // USE_LORAWAN_OTAA
+
 const char HTTP_FORM_LOG1[] PROGMEM =
   "<fieldset><legend><b>&nbsp;" D_LOGGING_PARAMETERS "&nbsp;</b>"
   "</legend><form method='get' action='lg'>";
@@ -2273,6 +2294,32 @@ void HandleOtherConfiguration(void) {
   WSContentSend_P(PSTR("</p></fieldset>"));
 #endif  // USE_EMULATION_WEMO || USE_EMULATION_HUE
 #endif  // USE_EMULATION
+
+#ifdef USE_LORAWAN_OTAA
+  char tmp[TOPSZ]; 
+  char hexString[256];
+  // j = sprintf(hexString, "%02X", TasmotaGlobal.joineui[7]);
+  // for(auto i=6; i>=0; i--){j+=sprintf(hexString+j, " %02X", TasmotaGlobal.joineui[i]);}         
+  // WSContentSend_P(HTTP_FORM_JOINEUI, "", &hexString);    
+  auto j = sprintf(hexString, "%02X", TasmotaGlobal.deveui[0]);
+  for (auto i=1;  i<8; i++) { j += sprintf(hexString+j, " %02X", TasmotaGlobal.deveui[i]); }
+  WSContentSend_P(HTTP_FORM_DEVEUI, "", &hexString); 
+  j = sprintf(hexString, "%02X", TasmotaGlobal.appkey[0]);
+  for (auto i=1; i<16; i++) { j += sprintf(hexString+j, " %02X", TasmotaGlobal.appkey[i]); }    
+  WSContentSend_P(HTTP_FORM_APPKEY, "", &hexString);
+  j = sprintf(hexString, "%02X", TasmotaGlobal.nwkkey[0]);
+  for (auto i=1; i<16; i++) { j += sprintf(hexString+j, " %02X", TasmotaGlobal.nwkkey[i]); }    
+  WSContentSend_P(HTTP_FORM_NWKKEY, "", &hexString);
+
+  // WebGetArg(PSTR("joineui"), tmp, sizeof(tmp));   // 
+  // SettingsUpdateText(SET_JOINEUI, tmp);
+  WebGetArg(PSTR("deveui"), tmp, sizeof(tmp));   // 
+  SettingsUpdateText(SET_DEVEUI, tmp);
+  WebGetArg(PSTR("appkey"), tmp, sizeof(tmp));   // 
+  SettingsUpdateText(SET_APPKEY, tmp);
+  WebGetArg(PSTR("nwkkey"), tmp, sizeof(tmp));   // 
+  SettingsUpdateText(SET_NWKKEY, tmp);
+#endif // USE_LORAWAN_OTAA
 
   WSContentSend_P(HTTP_FORM_END);
   WSContentSpaceButton(BUTTON_CONFIGURATION);

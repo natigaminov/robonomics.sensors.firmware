@@ -35,6 +35,7 @@ const char kTasmotaCommands[] PROGMEM = "|"  // No prefix
   D_CMND_TIMEDST "|" D_CMND_ALTITUDE "|" D_CMND_LEDPOWER "|" D_CMND_LEDSTATE "|" D_CMND_LEDMASK "|" D_CMND_LEDPWM_ON "|" D_CMND_LEDPWM_OFF "|" D_CMND_LEDPWM_MODE "|"
   D_CMND_WIFIPOWER "|" D_CMND_TEMPOFFSET "|" D_CMND_HUMOFFSET "|" D_CMND_SPEEDUNIT "|" D_CMND_GLOBAL_TEMP "|" D_CMND_GLOBAL_HUM"|" D_CMND_GLOBAL_PRESS "|" D_CMND_SWITCHTEXT "|" D_CMND_WIFISCAN "|" D_CMND_WIFITEST "|"
   D_CMND_ZIGBEE_BATTPERCENT "|"
+	/*D_CMND_JOINEUI "|"*/D_CMND_DEVEUI "|" D_CMND_APPKEY "|" D_CMND_NWKKEY "|"
 #ifdef USE_I2C
   D_CMND_I2CSCAN "|" D_CMND_I2CDRIVER "|"
 #endif
@@ -2171,6 +2172,88 @@ void CmndNtpServer(void)
     }
   }
 }
+
+#ifdef // USE_LORAWAN_OTAA
+void CmndJoinEui(void){
+  u8_t buf[8];
+  char char_var[2];
+  int j=0, k=7;
+  for(auto i=0; i<XdrvMailbox.data_len; i++){
+    if(XdrvMailbox.data[i]!=' '){
+     char_var[j] = XdrvMailbox.data[i];
+     j++;
+    }
+    if(j>1){
+      buf[k]=(u8_t)strtol(char_var, nullptr, 16);            
+      j=0;
+      k--;
+    }    
+  }
+  //  memcpy_P(TasmotaGlobal.joineui, buf, 8); 
+  //  memcpy_P(Settings->joineui, buf, 8);
+}
+
+void CmndDevEui(void){
+  u8_t buf[8];
+  char char_var[2];
+  int j=0, k=7;
+  for(auto i=0; i<XdrvMailbox.data_len; i++){
+    if(XdrvMailbox.data[i]!=' '){
+     char_var[j] = XdrvMailbox.data[i];
+     j++;
+    }
+    if(j>1){
+      buf[k]=(u8_t)strtol(char_var, nullptr, 16);            
+      j=0;
+      k--;
+    }    
+  }
+   memcpy_P(TasmotaGlobal.deveui, buf, 8); 
+   memcpy_P(Settings->deveui, buf, 8); 
+}
+
+void CmndAppKey(void)
+{
+  u8_t buf[16];
+  char char_var[2];
+  int j=0, k=0;
+  for(auto i=0; i<XdrvMailbox.data_len; i++){
+    if(XdrvMailbox.data[i]!=' '){
+     char_var[j] = XdrvMailbox.data[i];
+     j++;
+    }
+    if(j>1){
+      buf[k]=(u8_t)strtol(char_var, nullptr, 16);      
+     // Serial.printf("%d ",buf[k]);
+      j=0;
+      k++;
+    }    
+  }
+   memcpy_P(TasmotaGlobal.appkey, buf, 16); 
+   memcpy_P(Settings->appkey, buf, 16); 
+}
+
+void CmndNwkKey(void)
+{
+  u8_t buf[16];
+  char char_var[2];
+  int j=0, k=0;
+  for(auto i=0; i<XdrvMailbox.data_len; i++){
+    if(XdrvMailbox.data[i]!=' '){
+     char_var[j] = XdrvMailbox.data[i];
+     j++;
+    }
+    if(j>1){
+      buf[k]=(u8_t)strtol(char_var, nullptr, 16);      
+     // Serial.printf("%d ",buf[k]);
+      j=0;
+      k++;
+    }    
+  }
+   memcpy_P(TasmotaGlobal.nwkkey, buf, 16); 
+   memcpy_P(Settings->nwkkey, buf, 16); 
+}
+#endif // USE_LORAWAN_OTAA
 
 void CmndAp(void)
 {

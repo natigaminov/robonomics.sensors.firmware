@@ -856,6 +856,13 @@ void SettingsLoad(void) {
   settings_crc32 = GetSettingsCrc32();
 #endif  // FIRMWARE_MINIMAL
 
+#ifdef USE_LORAWAN_OTAA
+  // memcpy_P(TasmotaGlobal.joineui, Settings->joineui, 8);
+  memcpy_P(TasmotaGlobal.deveui, Settings->deveui, 8);
+	memcpy_P(TasmotaGlobal.appkey, Settings->appkey, 16); 
+  memcpy_P(TasmotaGlobal.nwkkey, Settings->nwkkey, 16);
+#endif // USE_LORAWAN_OTAA
+
   RtcSettingsLoad(1);
 }
 
