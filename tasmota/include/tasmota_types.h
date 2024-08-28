@@ -658,9 +658,10 @@ typedef struct {
 #ifdef CONFIG_IDF_TARGET_ESP32S2
   uint8_t       free_esp32s2_494[1];       // 494 - 2 bytes extra because of WebCamCfg 32-bit offset
 #else
-  uint8_t       free_esp32_484[17];        // 484
+  uint8_t       free_esp32_484[1];        // 484
 #endif
 #endif  // ESP32
+  uint8_t       appkey[16];
 
   uint8_t       ex_my_adc0;                // 495  Free since 9.0.0.1 - Do not use anymore because of ESP32S3
 
@@ -789,7 +790,9 @@ typedef struct {
   uint8_t       web_color2[2][3];          // EA0  Needs to be on integer / 3 distance from web_color
   uint16_t      zcdimmerset[5];            // EA6
 
-  uint8_t       free_eb0[22];              // EB0  22 bytes
+  uint8_t       free_eb0[6];              // EB0  22 bytes
+  
+  uint8_t       nwkkey[16];
 
   uint8_t       shift595_device_count;     // EC6
   uint8_t       sta_config;                // EC7
@@ -849,7 +852,9 @@ typedef struct {
   uint8_t       modbus_sconfig;            // F62
   uint8_t       windmeter_measure_intvl;   // F63
 
-  uint8_t       free_f64[12];              // F64 - Decrement if adding new Setting variables just above and below
+  uint8_t       free_f64[4];              // F64 - Decrement if adding new Setting variables just above and below
+  // uint8_t       joineui[8];
+  uint8_t       deveui[8];
 
   // Only 32 bit boundary variables below
   uint32_t      touch_threshold;           // F70

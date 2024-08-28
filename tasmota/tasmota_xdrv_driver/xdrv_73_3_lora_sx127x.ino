@@ -111,8 +111,32 @@ bool LoraSx127xSend(uint8_t* data, uint32_t len, bool invert) {
     LoraSx127xBusy();
   }
 
+#ifdef USE_LORAWAN_OTAA
+	int stateLRW = RADIOLIB_ERR_NONE;
+	uint32_t fcntUp = node.getFCntUp();
+
+	AddLog(LOG_LEVEL_INFO, PSTR("LRW: Sending uplink packet"));
+
+  // you can also retrieve additional information about an uplink or 
+  // downlink by passing a reference to LoRaWANEvent_t structure
+  LoRaWANEvent_t uplinkDetails;
+
+  // Send a confirmed uplink to port 10 every 64th frame
+  // and also request the LinkCheck and DeviceTime MAC commands
+  if(fcntUp % 64 == 0) {
+    node.sendMacCommandReq(RADIOLIB_LORAWAN_MAC_LINK_CHECK);
+    node.sendMacCommandReq(RADIOLIB_LORAWAN_MAC_DEVICE_TIME);
+    stateLRW = node.sendReceive(data, len, true);
+  } else {
+    stateLRW = node.sendReceive(data, len, 10);
+  }
+	if (stateLRW != RADIOLIB_ERR_NONE && stateLRW != RADIOLIB_LORAWAN_NO_DOWNLINK) {
+    AddLog(LOG_LEVEL_ERROR, PSTR("LRW: Send error %d"), stateLRW);
+  }
+#endif // USE_LORAWAN_OTAA
+
   int state = LoRaRadioSX1276.transmit(data, len);	
-  Lora->send_flag = true;                  // Use this flag as LoRaRadioSX1276.transmit enable send interrupt
+  Lora->send_flag = true;   // Use this flag as LoRaRadioSX1276.transmit enable send interrupt
 	if (invert) {
     LoraSx127xBusy();
     state2 = LoRaRadioSX1276.invertIQ(false);
@@ -153,6 +177,24 @@ bool LoraSx127xInit(void) {
 	int16_t state = LoRaRadioSX1276.begin(Lora->settings.frequency);
   if (RADIOLIB_ERR_NONE == state) {
     LoraSx127xConfig();
+
+#ifdef USE_LORAWAN_OTAA
+		uint64_t joinEUI = 0x0000000000000000;
+		node.beginOTAA(joinEUI, *(uint64_t*)TasmotaGlobal.deveui, TasmotaGlobal.nwkkey, TasmotaGlobal.appkey);
+		state = node.activateOTAA(4);
+		if(state != RADIOLIB_LORAWAN_NEW_SESSION) {
+			AddLog(LOG_LEVEL_ERROR, PSTR("LRW: Attempting over-the-air activation failed, code: %d"), state);
+			// while(true) { delay(1); }
+		} else {
+			AddLog(LOG_LEVEL_INFO, PSTR("LRW: Attempting over-the-air activation success"));
+			delay(2000);	// small delay between joining and uplink
+		}
+		AddLog(LOG_LEVEL_DEBUG, PSTR("LRW: DevAddr: %X"), node.getDevAddr());
+	
+		node.setADR(false);		// disable the ADR algorithm
+		node.setDatarate(3);  // set a fixed datarate
+#endif // USE_LORAWAN_OTAA
+
     LoRaRadioSX1276.setDio0Action(LoraSx127xOnInterrupt, RISING);
     if (RADIOLIB_ERR_NONE == LoRaRadioSX1276.startReceive()) {
       return true;

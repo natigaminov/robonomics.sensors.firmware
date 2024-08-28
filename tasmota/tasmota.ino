@@ -375,7 +375,12 @@ struct TasmotaGlobal_t {
   char serial_in_buffer[INPUT_BUFFER_SIZE];  // Receive buffer
   char mqtt_client[99];                     // Composed MQTT Clientname
   char mqtt_topic[TOPSZ];                   // Composed MQTT topic
-
+  
+  // uint8_t joineui[8];
+  uint8_t deveui[8];
+  uint8_t appkey[16];
+  uint8_t nwkkey[16];
+  
 #ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
   char* log_buffer = nullptr;               // Log buffer in IRAM
 #else
