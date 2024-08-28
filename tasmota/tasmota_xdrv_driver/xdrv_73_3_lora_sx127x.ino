@@ -11,99 +11,152 @@
 #ifdef USE_LORA_SX127X
 /*********************************************************************************************\
  * Legacy Semtech SX1276/77/78/79 Long Range (LoRa)
- * - HopeRF RFM95W, RFM96W and RFM98W
  * - LilyGo TTGO T3 LoRa32 868MHz ESP32 (uses SX1276)
  * - LilyGo TTGO T-Higrow 868MHz (uses SX1276)
  * - DFRobot FireBeetle Covers LoRa Radio 868MHz (uses SX1278)
  * - M5Stack LoRa868 (uses AI-01 which uses SX1276)
- * - Modtronix
- * 
+ *
  * Used GPIO's:
  * - SPI_CLK
- * - SPI_MISO 
+ * - SPI_MISO
  * - SPI_MOSI
  * - LoRa_CS
- * - LoRa_Rst
  * - LoRa_DIO0
+ * - LoRa_Rst
+ * - LoRa_DIO1
 \*********************************************************************************************/
 
-#include <LoRa.h>                          // extern LoRaClass LoRa;
+//#define USE_LORA_SX127X_DEBUG
 
-void LoraSx127xOnReceive(int packet_size) {
-  // This function is called when a complete packet is received by the module
-#ifdef USE_LORA_DEBUG
-//  AddLog(LOG_LEVEL_DEBUG, PSTR("S7X: Packet size %d"), packet_size);
-#endif    
-  if (0 == packet_size) { return; }        // if there's no packet, return
-  if (!Lora->receive_time) {
+#include <RadioLib.h>
+SX1276 LoRaRadioSX1276 = nullptr;                // Select LoRa support
+LoRaWANNode node(&LoRaRadioSX1276, &EU868);      // For LoRaWAN connect
+
+bool LoraSx127xBusy(void) {
+  // This is not consistently implemented in the used library
+  uint32_t timeout;
+  SetNextTimeInterval(timeout, 100);
+  while (!TimeReached(timeout)) {
+    delay(0);
+  }
+  return TimeReached(timeout);
+}
+
+/*********************************************************************************************/
+
+void IRAM_ATTR LoraSx127xOnInterrupt(void);
+void LoraSx127xOnInterrupt(void) {
+  // This is called after EVERY type of enabled interrupt so chk for valid receivedFlag in LoraAvailableSx127x()
+  if (!Lora->send_flag && !Lora->received_flag && !Lora->receive_time) {
     Lora->receive_time = millis();
   }
   Lora->received_flag = true;              // we got a packet, set the flag
 }
 
 bool LoraSx127xAvailable(void) {
-  return Lora->received_flag;              // check if the flag is set
+  if (Lora->send_flag) {
+    Lora->received_flag = false;           // Reset receive flag as it was caused by send interrupt
+
+    uint32_t time = millis();
+    int state = LoRaRadioSX1276.startReceive();  // Put module back to listen mode
+
+    Lora->send_flag = false;
+    if (state != RADIOLIB_ERR_NONE) {
+      AddLog(LOG_LEVEL_DEBUG_MORE, PSTR("S7X: Rcvd (%d) restarted (%d)"), time, state);
+    }
+  }
+  else if (Lora->received_flag) {
+    uint32_t irq_stat = LoRaRadioSX1276.getIRQFlags();
+
+#ifdef USE_LORA_SX127X_DEBUG
+    if (irq_stat != 0) {
+      AddLog(LOG_LEVEL_DEBUG_MORE, PSTR("S7X: Flag (%d) irq %04X"), millis(), irq_stat);
+    }
+#endif  // USE_LORA_SX127X_DEBUG
+
+    if (0 == (irq_stat & RADIOLIB_SX127X_CLEAR_IRQ_FLAG_RX_DONE)) {
+      Lora->received_flag = false;         // Reset receive flag
+    }
+  }
+  return (Lora->received_flag);            // Check if the receive flag is set
 }
 
 int LoraSx127xReceive(char* data) {
-  Lora->received_flag = false;             // reset flag
-  int packet_size = 0;
-  int sdata = LoRa.read();
-  while ((sdata > -1) && (packet_size < TAS_LORA_MAX_PACKET_LENGTH -1)) {  // Read packet up to LORA_MAX_PACKET_LENGTH
-    data[packet_size++] = (char)sdata;
-    sdata = LoRa.read();
+  Lora->received_flag = false;             // Reset flag
+  int packet_size = LoRaRadioSX1276.getPacketLength();
+  int state = LoRaRadioSX1276.readData((uint8_t*)data, TAS_LORA_MAX_PACKET_LENGTH -1);
+
+  // LoRaWan downlink frames are sent without CRC, which will raise error on SX127x. We can ignore that error
+  if (RADIOLIB_ERR_CRC_MISMATCH == state) {
+    state = RADIOLIB_ERR_NONE;
+    AddLog(LOG_LEVEL_DEBUG, PSTR("S7X: Ignoring CRC error"));
   }
-  Lora->rssi = LoRa.packetRssi();
-  Lora->snr = LoRa.packetSnr();
+  if (RADIOLIB_ERR_NONE == state) {
+    Lora->rssi = LoRaRadioSX1276.getRSSI();
+    Lora->snr = LoRaRadioSX1276.getSNR();
+  } else {
+    packet_size = 0;                       // Some other error occurred
+    AddLog(LOG_LEVEL_DEBUG, PSTR("S7X: Receive error %d"), state);
+  }
   return packet_size;
 }
 
 bool LoraSx127xSend(uint8_t* data, uint32_t len, bool invert) {
+  int state1 = RADIOLIB_ERR_NONE;
+  int state2 = RADIOLIB_ERR_NONE;
+
   if (invert) {
-    LoRa.enableInvertIQ();                 // active invert I and Q signals
+    LoRaRadioSX1276.standby();
+    state1 = LoRaRadioSX1276.invertIQ(false);
+    LoraSx127xBusy();
   }
-  LoRa.beginPacket(Lora->settings.implicit_header);  // start packet
-  LoRa.write(data, len);                   // send message
-  LoRa.endPacket();                        // finish packet and send it
-  if (invert) {
-    LoRa.disableInvertIQ();                // normal mode
+
+  int state = LoRaRadioSX1276.transmit(data, len);	
+  Lora->send_flag = true;                  // Use this flag as LoRaRadioSX1276.transmit enable send interrupt
+	if (invert) {
+    LoraSx127xBusy();
+    state2 = LoRaRadioSX1276.invertIQ(false);
+    LoRaRadioSX1276.standby();
   }
-  LoRa.receive();                          // go back into receive mode
-  return true;
+  if (state != RADIOLIB_ERR_NONE || state1 != RADIOLIB_ERR_NONE || state2 != RADIOLIB_ERR_NONE) {
+    AddLog(LOG_LEVEL_DEBUG, PSTR("S7X: Send error %d %d %d %d"), state1, state, state2);
+  }
+  return (RADIOLIB_ERR_NONE == state);
 }
 
 bool LoraSx127xConfig(void) {
-  LoRa.setFrequency(Lora->settings.frequency * 1000 * 1000);
-  LoRa.setSignalBandwidth(Lora->settings.bandwidth * 1000);
-  LoRa.setSpreadingFactor(Lora->settings.spreading_factor);
-  LoRa.setCodingRate4(Lora->settings.coding_rate);
-  LoRa.setSyncWord(Lora->settings.sync_word);
-  LoRa.setTxPower(Lora->settings.output_power);
-  LoRa.setPreambleLength(Lora->settings.preamble_length);
-  LoRa.setOCP(Lora->settings.current_limit);
-  if (Lora->settings.crc_bytes) {
-    LoRa.enableCrc();
-  } else {
-    LoRa.disableCrc();
-  }
-/*    
-  if (Lora->settings.implicit_header) { 
-    LoRa.implicitHeaderMode();
+  LoRaRadioSX1276.setCodingRate(Lora->settings.coding_rate);
+  LoRaRadioSX1276.setSyncWord(Lora->settings.sync_word);
+  LoRaRadioSX1276.setPreambleLength(Lora->settings.preamble_length);
+  LoRaRadioSX1276.setCurrentLimit(Lora->settings.current_limit);
+	if (Lora->settings.crc_bytes) {
+    LoRaRadioSX1276.setCRC(true);
   } else { 
-    LoRa.explicitHeaderMode();
+		LoRaRadioSX1276.setCRC(false);
   }
-*/
-  LoRa.disableInvertIQ();                  // normal mode
+  LoRaRadioSX1276.setCRC(true);
+  LoRaRadioSX1276.setSpreadingFactor(Lora->settings.spreading_factor);
+  LoRaRadioSX1276.setBandwidth(Lora->settings.bandwidth);
+  LoRaRadioSX1276.setFrequency(Lora->settings.frequency);
+  LoRaRadioSX1276.setOutputPower(Lora->settings.output_power);
+  // if (Lora->settings.implicit_header) {
+  //   !LoRaRadioSX1276.implicitHeader(Lora->settings.implicit_header);
+  // } else {
+  //   !LoRaRadioSX1276.explicitHeader();
+  // }
+  !LoRaRadioSX1276.invertIQ(false);
   return true;
 }
 
 bool LoraSx127xInit(void) {
-  LoRa.setPins(Pin(GPIO_LORA_CS), Pin(GPIO_LORA_RST), Pin(GPIO_LORA_DI0));
-  if (LoRa.begin(Lora->settings.frequency * 1000 * 1000)) {
+  LoRaRadioSX1276 = new Module(Pin(GPIO_LORA_CS), Pin(GPIO_LORA_DI0), Pin(GPIO_LORA_RST), Pin(GPIO_LORA_DI1));
+	int16_t state = LoRaRadioSX1276.begin(Lora->settings.frequency);
+  if (RADIOLIB_ERR_NONE == state) {
     LoraSx127xConfig();
-    LoRa.onReceive(LoraSx127xOnReceive);
-    LoRa.receive();
-    return true;
+    LoRaRadioSX1276.setDio0Action(LoraSx127xOnInterrupt, RISING);
+    if (RADIOLIB_ERR_NONE == LoRaRadioSX1276.startReceive()) {
+      return true;
+    }
   }
   return false;
 }
