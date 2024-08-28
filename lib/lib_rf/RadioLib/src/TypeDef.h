@@ -292,6 +292,11 @@
 */
 #define RADIOLIB_ERR_INVALID_OOK_RSSI_PEAK_TYPE                (-108)
 
+/*!
+  \brief Supplied Bitrate tolerance value is out of Range.
+*/
+#define RADIOLIB_ERR_INVALID_BIT_RATE_TOLERANCE_VALUE          (-109)
+
 // APRS status codes
 
 /*!
@@ -499,7 +504,7 @@
 #define RADIOLIB_ERR_INVALID_REVISION                           (-1103)
 
 /*!
-  \brief Invalid LoRaWAN uplink port requested by user.
+  \brief Invalid LoRaWAN uplink port requested by user, or downlink received at invalid port.
 */
 #define RADIOLIB_ERR_INVALID_PORT                               (-1104)
 
@@ -509,9 +514,9 @@
 #define RADIOLIB_ERR_NO_RX_WINDOW                               (-1105)
 
 /*!
-  \brief No valid channel for the currently active LoRaWAN band was found.
+  \brief There are no channels available for the requested datarate.
 */
-#define RADIOLIB_ERR_INVALID_CHANNEL                            (-1106)
+#define RADIOLIB_ERR_NO_CHANNEL_AVAILABLE                       (-1106)
 
 /*!
   \brief Invalid LoRaWAN MAC command ID.
@@ -557,6 +562,58 @@
   \brief The buffer integrity check did not match the supplied checksum value.
 */
 #define RADIOLIB_ERR_CHECKSUM_MISMATCH                          (-1115)
+
+/*!
+  \brief No downlink was received - most likely none was sent from the server.
+*/
+#define RADIOLIB_LORAWAN_NO_DOWNLINK                            (-1116)
+
+/*!
+  \brief The LoRaWAN session was successfully re-activated.
+*/
+#define RADIOLIB_LORAWAN_SESSION_RESTORED                       (-1117)
+
+/*!
+  \brief A new LoRaWAN session is started.
+*/
+#define RADIOLIB_LORAWAN_NEW_SESSION                            (-1118)
+
+/*!
+  \brief The supplied Nonces buffer is discarded as its activation information is invalid.
+*/
+#define RADIOLIB_LORAWAN_NONCES_DISCARDED                       (-1119)
+
+/*!
+  \brief The supplied Session buffer is discarded as it doesn't match the Nonces.
+*/
+#define RADIOLIB_LORAWAN_SESSION_DISCARDED                       (-1120)
+
+/*!
+  \brief The requested command is unavailable under the current LoRaWAN mode.
+*/
+#define RADIOLIB_LORAWAN_INVALID_MODE                            (-1121)
+
+// LR11x0-specific status codes
+
+/*!
+  \brief The selected 802.11 WiFi type is invalid.
+*/
+#define RADIOLIB_ERR_INVALID_WIFI_TYPE                          (-1200)
+
+/*!
+  \}
+*/
+
+/*!
+  \defgroup typedefs Type aliases used by RadioLib.
+
+  \{
+*/
+
+/*!
+  \brief Type used for durations in RadioLib
+*/
+typedef unsigned long RadioLibTime_t;
 
 /*!
   \}
